@@ -1,7 +1,7 @@
 {
   "name": "dsh-teamai-panel",
-  "version": "0.2.1",
-  "description": "DeepSeek Harness sidebar panel for a read-only TeamAI inventory.",
+  "version": "0.3.0",
+  "description": "DeepSeek Harness sidebar panel for TeamAI skills, MCP, and prompts.",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -30,6 +30,7 @@
     "lib/index.js",
     "lib/snapshot.js",
     "lib/inventory.js",
+    "lib/actions.js",
     "lib/client.js",
     "cordis.patch.yml",
     "README.md",
@@ -39,7 +40,7 @@
     "yaml": "2.8.1"
   },
   "scripts": {
-    "check": "node --check lib/index.js && node --check lib/snapshot.js && node --check lib/inventory.js && node --check lib/client.js",
+    "check": "node --check lib/index.js && node --check lib/snapshot.js && node --check lib/inventory.js && node --check lib/actions.js && node --check lib/client.js",
     "test": "node --test"
   },
   "keywords": [

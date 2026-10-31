@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { apply, handleSnapshot } from '../lib/index.js'
+import { apply, handleAction, handleSnapshot } from '../lib/index.js'
 
 function response() {
   return {
@@ -96,21 +96,72 @@ test('loopback GET returns the snapshot and HEAD has no body', async () => {
   }
 })
 
-test('apply registers the route now or when webServer arrives', () => {
-  let immediate
+function actionRequest(body, overrides = {}) {
+  const payload = typeof body === 'string' ? Buffer.from(body) : Buffer.from(JSON.stringify(body))
+  const chunks = overrides.chunks || [payload]
+  return {
+    method: 'POST',
+    url: '/teamai-panel/action',
+    headers: { host: '127.0.0.1:3080' },
+    socket: { remoteAddress: '127.0.0.1' },
+    async *[Symbol.asyncIterator]() {
+      for (const chunk of chunks) yield chunk
+    },
+    ...overrides,
+    chunks: undefined,
+  }
+}
+
+test('action route rejects remote clients, other methods, bad JSON, and a missing confirmation', async () => {
+  const remote = response()
+  await handleAction(actionRequest({ action: 'pull', confirm: 'pull' }, {
+    socket: { remoteAddress: '8.8.8.8' },
+  }), remote)
+  assert.equal(remote.status, 403)
+
+  const got = response()
+  await handleAction(actionRequest({}, { method: 'GET' }), got)
+  assert.equal(got.status, 405)
+
+  const broken = response()
+  await handleAction(actionRequest('{'), broken)
+  assert.equal(broken.status, 400)
+  assert.equal(JSON.parse(broken.body).code, 'invalid')
+
+  const unconfirmed = response()
+  await handleAction(actionRequest({ action: 'pull' }), unconfirmed)
+  assert.equal(unconfirmed.status, 400)
+  assert.equal(JSON.parse(unconfirmed.body).code, 'confirm')
+
+  const huge = response()
+  await handleAction(actionRequest({}, {
+    chunks: [Buffer.alloc(60 * 1024, 0x61), Buffer.alloc(20 * 1024, 0x62)],
+  }), huge)
+  assert.equal(huge.status, 413)
+  assert.equal(JSON.parse(huge.body).code, 'too-large')
+})
+
+test('apply registers the snapshot and action routes', () => {
+  const immediate = []
   apply({
-    webServer: { register(route) { immediate = route; return () => {} } },
+    webServer: { register(route) { immediate.push(route); return () => {} } },
     effect(run) { run() },
   })
-  assert.equal(immediate.kind, 'exact')
-  assert.equal(immediate.path, '/teamai-panel/snapshot')
+  assert.equal(immediate.every((route) => route.kind === 'exact'), true)
+  assert.deepEqual(immediate.map((route) => route.path).sort(), [
+    '/teamai-panel/action',
+    '/teamai-panel/snapshot',
+  ])
 
-  let late
+  const late = []
   apply({
     inject(names, ready) {
       assert.deepEqual(names, ['webServer'])
-      ready({ webServer: { register(route) { late = route } } })
+      ready({ webServer: { register(route) { late.push(route); return () => {} } } })
     },
   })
-  assert.equal(late.path, '/teamai-panel/snapshot')
+  assert.deepEqual(late.map((route) => route.path).sort(), [
+    '/teamai-panel/action',
+    '/teamai-panel/snapshot',
+  ])
 })

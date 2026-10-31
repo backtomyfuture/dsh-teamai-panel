@@ -29,6 +29,10 @@ test('the client bundle has no top-level import or export', () => {
   assert.match(clientSource, /同一个插件/)
   assert.match(clientSource, /DeepSeek Harness 不加载它们/)
   assert.match(clientSource, /\/teamai-panel\/snapshot/)
+  assert.match(clientSource, /\/teamai-panel\/action/)
+  assert.match(clientSource, /空骨架/)
+  assert.match(clientSource, /提示词/)
+  assert.equal(clientSource.includes('window.confirm'), false)
 })
 
 test('apply registers the same panel id on both slots', () => {
@@ -80,4 +84,81 @@ test('apply registers the same panel id on both slots', () => {
   assert.equal(icon.type, 'svg')
   assert.equal(icon.props.width, 20)
   assert.equal(icon.props.height, 20)
+})
+
+function textOf(node) {
+  if (node == null || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(textOf).join('\n')
+  return textOf(node.children)
+}
+
+function renderPage(seed) {
+  const sandbox = {
+    console,
+    window: { __ModuleLoader__: { load(spec) { sandbox.loaded = spec } } },
+  }
+  runInContext(clientSource, createContext(sandbox), { filename: 'client.js' })
+  let useStateCalls = 0
+  const plugin = sandbox.loaded.factory((id) => {
+    if (id !== 'react') throw new Error('unexpected module ' + id)
+    return {
+      Fragment: 'fragment',
+      createElement(type, props, ...children) {
+        return { type, props, children }
+      },
+      useState(initial) {
+        const index = useStateCalls
+        useStateCalls += 1
+        const value = seed && Object.prototype.hasOwnProperty.call(seed, index) ? seed[index] : initial
+        return [value, () => {}]
+      },
+      useEffect() {},
+    }
+  })
+  let page
+  plugin.apply({
+    slots: {
+      inject(_name, register) { register() },
+      register(meta, component) {
+        if (meta.name === 'main') page = component
+        return () => {}
+      },
+    },
+  })
+  return textOf(page())
+}
+
+test('the skills page offers setup and the other tabs keep their own copy', () => {
+  const fresh = renderPage()
+  assert.equal(fresh.includes('安装 TeamAI'), true)
+  assert.equal(fresh.includes('概览'), true)
+  assert.equal(fresh.includes('团队技能'), true)
+  assert.equal(fresh.includes('空骨架'), false)
+  assert.equal(fresh.includes('团队 MCP'), false)
+
+  const ready = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: null,
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+  })
+  assert.equal(ready.includes('空骨架'), true)
+  assert.equal(ready.includes('初始化'), true)
+  assert.equal(ready.includes('安装 TeamAI'), false)
+
+  const prompts = renderPage({ 7: 'prompts' })
+  assert.equal(prompts.includes('团队提示词'), true)
+  assert.equal(prompts.includes('保存并推送'), true)
+  assert.equal(prompts.includes('概览'), false)
+
+  const mcp = renderPage({ 7: 'mcp' })
+  assert.equal(mcp.includes('团队 MCP'), true)
+  assert.equal(mcp.includes('DeepSeek Harness 不加载它们'), true)
+  assert.equal(mcp.includes('从其他代理移除'), true)
+  assert.equal(mcp.includes('概览'), false)
 })
