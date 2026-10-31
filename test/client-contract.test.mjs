@@ -90,7 +90,8 @@ function textOf(node) {
   if (node == null || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(textOf).join('\n')
-  return textOf(node.children)
+  const props = node.props || {}
+  return [props.placeholder, props['aria-label'], textOf(node.children)].filter(Boolean).join('\n')
 }
 
 function renderPage(seed) {
@@ -132,10 +133,20 @@ function renderPage(seed) {
 test('the skills page offers setup and the other tabs keep their own copy', () => {
   const fresh = renderPage()
   assert.equal(fresh.includes('安装 TeamAI'), true)
-  assert.equal(fresh.includes('概览'), true)
-  assert.equal(fresh.includes('团队技能'), true)
+  assert.equal(fresh.includes('这份 DSH 能收到什么'), true)
+  assert.equal(fresh.includes('开始'), true)
+  assert.equal(fresh.indexOf('开始') < fresh.indexOf('技能 '), true)
+  assert.equal(fresh.includes('概览'), false)
+  assert.equal(fresh.includes('筛选技能'), false)
   assert.equal(fresh.includes('空骨架'), false)
   assert.equal(fresh.includes('团队 MCP'), false)
+
+  const skills = renderPage({ 7: 'skills' })
+  assert.equal(skills.includes('概览'), true)
+  assert.equal(skills.includes('团队技能'), true)
+  assert.equal(skills.includes('筛选技能'), true)
+  assert.equal(skills.includes('这份 DSH 能收到什么'), false)
+  assert.equal(skills.includes('安装 TeamAI'), false)
 
   const ready = renderPage({
     1: {
@@ -155,10 +166,12 @@ test('the skills page offers setup and the other tabs keep their own copy', () =
   assert.equal(prompts.includes('团队提示词'), true)
   assert.equal(prompts.includes('保存并推送'), true)
   assert.equal(prompts.includes('概览'), false)
+  assert.equal(prompts.includes('安装 TeamAI'), false)
 
   const mcp = renderPage({ 7: 'mcp' })
   assert.equal(mcp.includes('团队 MCP'), true)
   assert.equal(mcp.includes('DeepSeek Harness 不加载它们'), true)
   assert.equal(mcp.includes('从其他代理移除'), true)
   assert.equal(mcp.includes('概览'), false)
+  assert.equal(mcp.includes('安装 TeamAI'), false)
 })

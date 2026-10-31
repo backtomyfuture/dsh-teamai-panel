@@ -1,6 +1,6 @@
 {
   "name": "dsh-teamai-panel",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "DeepSeek Harness sidebar panel for TeamAI skills, MCP, and prompts.",
   "license": "MIT",
   "type": "module",
