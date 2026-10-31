@@ -26,6 +26,8 @@ test('the client bundle has no top-level import or export', () => {
   assert.equal(/^\s*export\s/m.test(clientSource), false)
   assert.equal(clientSource.includes('position:fixed'), false)
   assert.equal(clientSource.includes('position: fixed'), false)
+  assert.match(clientSource, /同一个插件/)
+  assert.match(clientSource, /DeepSeek Harness 不加载它们/)
   assert.match(clientSource, /\/teamai-panel\/snapshot/)
 })
 

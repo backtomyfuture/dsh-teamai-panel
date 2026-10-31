@@ -197,6 +197,148 @@ test('a missing config is an empty snapshot', async () => {
   }
 })
 
+test('the inventory keeps secrets, commands, and MCP endpoints out', async () => {
+  const home = await mkdtemp(path.join(tmpdir(), 'teamai-panel-inventory-'))
+  const repo = path.join(home, 'team-repo')
+  const secrets = [
+    'SUPER_SECRET_VALUE',
+    'SECRETURL',
+    'ARGSECRET',
+    'URLSECRET',
+    'HEADERSECRET',
+    'ENVSECRET',
+    'HOOKSECRET',
+    'BASESECRET',
+    'sk-LIVEKEY',
+    'RULEBODYSECRET',
+    'AGENTPROMPTSECRET',
+  ]
+  try {
+    await mkdir(path.join(repo, 'rules'), { recursive: true })
+    await writeFile(path.join(repo, 'rules', 'review.md'), '# 评审规则\nRULEBODYSECRET\n')
+    await mkdir(path.join(repo, 'docs', 'guide'), { recursive: true })
+    await writeFile(path.join(repo, 'docs', 'guide', 'start.md'), '# 开始\n')
+    await mkdir(path.join(repo, 'env', 'fe'), { recursive: true })
+    await writeFile(path.join(repo, 'env', 'env.yaml'), [
+      'variables:',
+      '  - key: PLAIN',
+      '    value: SUPER_SECRET_VALUE',
+      '    description: 普通说明',
+      '',
+    ].join('\n'))
+    await writeFile(path.join(repo, 'env', 'fe', 'secrets.yaml'), [
+      'secrets:',
+      '  - key: TOKEN',
+      '    description: 令牌',
+      '    url: https://example.com/token?x=SECRETURL',
+      '    value: SUPER_SECRET_VALUE',
+      '',
+    ].join('\n'))
+    await mkdir(path.join(repo, 'mcp', 'fe'), { recursive: true })
+    await writeFile(path.join(repo, 'mcp', 'mcp.yaml'), [
+      'servers:',
+      '  - name: local-tool',
+      '    description: 本地工具',
+      '    transport: stdio',
+      '    command: echo ARGSECRET',
+      '    args: ["--token", "ARGSECRET"]',
+      '    env:',
+      '      TOKEN: ENVSECRET',
+      '    tools: [search]',
+      '    requires: [TOKEN]',
+      '',
+    ].join('\n'))
+    await writeFile(path.join(repo, 'mcp', 'fe', 'mcp.yaml'), [
+      'servers:',
+      '  - name: remote-tool',
+      '    description: 远程工具',
+      '    transport: http',
+      '    url: https://example.com/mcp?token=URLSECRET',
+      '    headers:',
+      '      Authorization: HEADERSECRET',
+      '    tools: [lookup]',
+      '',
+    ].join('\n'))
+    await mkdir(path.join(repo, 'hooks'), { recursive: true })
+    await writeFile(path.join(repo, 'hooks', 'hooks.yaml'), [
+      'hooks:',
+      '  - id: before-edit',
+      '    description: 编辑前',
+      '    event: PreToolUse',
+      '    matcher: Bash',
+      '    command: echo HOOKSECRET',
+      '    tools: [Bash]',
+      '',
+    ].join('\n'))
+    await mkdir(path.join(repo, 'models'), { recursive: true })
+    await writeFile(path.join(repo, 'models', 'models.yaml'), [
+      'version: 1',
+      'profiles:',
+      '  - id: main',
+      '    name: 主力',
+      '    base_url: https://gateway.example/BASESECRET',
+      '    api_key: sk-LIVEKEY',
+      '    model_groups:',
+      '      - protocols: [anthropic]',
+      '        models: [deepseek-v4]',
+      '',
+    ].join('\n'))
+    await writeFile(path.join(repo, 'models', 'aliases.yaml'), 'aliases:\n  fast: sk-LIVEKEY\n')
+    await mkdir(path.join(repo, 'agents'), { recursive: true })
+    await writeFile(path.join(repo, 'agents', 'reviewer.yaml'), 'name: reviewer\ndescription: 评审\nprompt: AGENTPROMPTSECRET\n')
+    await mkdir(path.join(repo, 'workflows'), { recursive: true })
+    await writeFile(path.join(repo, 'workflows', 'daily.yaml'), 'name: daily\ndescription: 每日\ncommand: HOOKSECRET\n')
+    await mkdir(path.join(repo, 'manifest'), { recursive: true })
+    await writeFile(path.join(repo, 'manifest', 'roles.yaml'), 'version: 1\nroles:\n  - id: fe\n    name: 前端\n')
+    await writeFile(path.join(repo, 'manifest', 'projects.yaml'), 'version: 1\nprojects:\n  - id: app\n    name: 应用\n')
+    await mkdir(path.join(home, '.teamai'), { recursive: true })
+    await writeFile(path.join(home, '.teamai', 'config.yaml'), [
+      'username: ada',
+      'scope: user',
+      'repo:',
+      '  localPath: ~/team-repo',
+      '  remote: https://example.com/team.git',
+      '  kind: git',
+      '',
+    ].join('\n'))
+    const snapshot = await createSnapshot({ home, cwd: home, env: {} })
+    const inventory = snapshot.selected.inventory
+    assert.equal(inventory.rules[0].name, 'review')
+    assert.equal(inventory.rules[0].detail, '评审规则')
+    assert.equal(inventory.docs[0].name, 'docs/guide/start.md')
+    assert.equal(inventory.env[0].name, 'PLAIN')
+    assert.equal(inventory.env[0].detail, '普通说明')
+    assert.equal(inventory.secrets[0].name, 'TOKEN')
+    assert.equal(inventory.secrets[0].meta.includes('密钥声明'), true)
+    assert.equal(inventory.mcp.map((item) => item.name).sort().join(','), 'local-tool,remote-tool')
+    const remote = inventory.mcp.find((item) => item.name === 'remote-tool')
+    assert.match(remote.meta, /http/)
+    assert.match(remote.meta, /命名空间 fe/)
+    assert.match(remote.meta, /已写地址/)
+    assert.match(remote.meta, /请求头 Authorization/)
+    assert.equal(inventory.hooks[0].name, 'before-edit')
+    assert.match(inventory.hooks[0].meta, /PreToolUse/)
+    assert.equal(inventory.models[0].name, 'main')
+    assert.match(inventory.models[0].meta, /deepseek-v4/)
+    assert.match(inventory.models[0].meta, /未显示/)
+    assert.equal(inventory.aliases[0].name, 'fast')
+    assert.equal(inventory.agents[0].name, 'reviewer')
+    assert.equal(inventory.workflows[0].name, 'daily')
+    assert.equal(inventory.workflows[0].detail, '每日')
+    assert.equal(inventory.roles[0].name, 'fe')
+    assert.equal(inventory.projects[0].name, 'app')
+    assert.equal(snapshot.dsh.find((item) => item.id === 'mcp').mark, 'absent')
+    const body = JSON.stringify(snapshot)
+    for (const secret of secrets) assert.equal(body.includes(secret), false, secret)
+    assert.equal(body.includes(home), false)
+    assert.equal(body.includes('example.com/mcp'), false)
+    assert.equal(body.includes('example.com/token'), false)
+    assert.equal(body.includes('gateway.example'), false)
+  } finally {
+    await rm(home, { recursive: true, force: true })
+  }
+})
+
 test('an unknown workspace id falls back and warns', async () => {
   const dir = await fixture()
   try {
