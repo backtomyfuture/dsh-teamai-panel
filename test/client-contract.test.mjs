@@ -79,7 +79,7 @@ test('apply registers the same panel id on both slots', () => {
   assert.equal(main.meta.key, 'teamai-skills')
   assert.equal(sidebar.meta.id, 'teamai-skills')
   assert.equal(sidebar.meta.order, 40)
-  assert.equal(sidebar.meta.label, '团队技能')
+  assert.equal(sidebar.meta.label, 'Teamai资源中心')
   const icon = sidebar.component({ size: 20 })
   assert.equal(icon.type, 'svg')
   assert.equal(icon.props.width, 20)
@@ -177,6 +177,22 @@ test('the skills page offers setup and the other tabs keep their own copy', () =
   assert.equal(configured.includes('仓库已经初始化'), true)
   assert.equal(configured.includes('GitHub 地址'), true)
   assert.equal(configured.includes('安装 TeamAI'), false)
+  assert.equal(configured.includes('修改配置'), true)
+  assert.equal(configured.includes('+ 关联新仓库'), false)
+
+  const configEditing = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: { id: 'abc', scope: 'user', label: '用户', rows: [], inventory: {} },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    27: true,
+  })
+  assert.equal(configEditing.includes('当前角色 (Role)'), true)
+  assert.equal(configEditing.includes('删除该配置'), true)
 
   const skillRows = renderPage({
     1: {
@@ -204,12 +220,42 @@ test('the skills page offers setup and the other tabs keep their own copy', () =
     7: 'skills',
   })
   assert.equal(skillRows.includes('安装到本机'), true)
-  assert.equal(skillRows.includes('推送'), true)
   assert.equal(skillRows.includes('排除'), true)
+  assert.equal(skillRows.includes('使用记录'), false)
+  assert.equal(skillRows.includes('推送全部本地技能'), false)
+  // Repo tab does not have push button
+  assert.equal(skillRows.includes('推送'), false)
+
+  const catalogRows = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        label: '用户',
+        rows: [{
+          name: 'demo',
+          inTeamRepo: true,
+          visible: true,
+          excluded: false,
+          description: '说明',
+          repoCopies: ['skills/demo'],
+          dshCount: 0,
+        }],
+        inventory: {},
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'skills',
+    6: 'catalog',
+  })
+  assert.equal(catalogRows.includes('推送'), true)
 
   const prompts = renderPage({ 7: 'prompts' })
   assert.equal(prompts.includes('团队提示词'), true)
-  assert.equal(prompts.includes('保存并推送'), true)
   assert.equal(prompts.includes('概览'), false)
   assert.equal(prompts.includes('安装 TeamAI'), false)
 
@@ -217,6 +263,151 @@ test('the skills page offers setup and the other tabs keep their own copy', () =
   assert.equal(mcp.includes('团队 MCP'), true)
   assert.equal(mcp.includes('DeepSeek Harness 不加载它们'), true)
   assert.equal(mcp.includes('从其他代理移除'), true)
+  assert.equal(mcp.includes('同一仓库里的其他资源'), false)
   assert.equal(mcp.includes('概览'), false)
   assert.equal(mcp.includes('安装 TeamAI'), false)
+
+  const other = renderPage({ 7: 'other' })
+  assert.equal(other.includes('同一仓库里的其他资源'), true)
+  assert.equal(other.includes('团队其他资源'), true)
+  assert.equal(other.includes('规则'), true)
+  assert.equal(other.includes('文档'), true)
+  assert.equal(other.includes('概览'), false)
+  assert.equal(other.includes('安装 TeamAI'), false)
+
+  const populatedPrompts = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        label: '用户',
+        rows: [],
+        inventory: {
+          prompts: [{ name: 'review.md', detail: '评审' }],
+        },
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'prompts',
+  })
+  assert.equal(populatedPrompts.includes('推送全部提示词'), false)
+  // Repo prompts do not have push button
+  assert.equal(populatedPrompts.includes('推送'), false)
+  assert.equal(populatedPrompts.includes('编辑'), true)
+  assert.equal(populatedPrompts.includes('从仓库删除'), true)
+
+  const catalogPrompts = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        label: '用户',
+        rows: [],
+        inventory: {
+          prompts: [],
+          localPrompts: [{ name: 'local-review.md', detail: '本地评审' }],
+        },
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'prompts',
+    6: 'catalog',
+  })
+  assert.equal(catalogPrompts.includes('推送'), true)
+
+  const promptModal = renderPage({ 7: 'prompts', 32: true })
+  assert.equal(promptModal.includes('新建提示词'), true)
+  assert.equal(promptModal.includes('保存并推送'), true)
+
+  const populatedMcp = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        label: '用户',
+        rows: [],
+        inventory: {
+          mcp: [{ name: 'docs', detail: 'stdio' }],
+        },
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'mcp',
+  })
+  assert.equal(populatedMcp.includes('推送全部 MCP'), false)
+  // Repo MCP does not have push button
+  assert.equal(populatedMcp.includes('推送'), false)
+  assert.equal(populatedMcp.includes('从仓库删除'), true)
+
+  const catalogMcp = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        label: '用户',
+        rows: [],
+        inventory: {
+          mcp: [],
+          localMcp: [{ name: 'local-docs', detail: 'stdio' }],
+        },
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'mcp',
+    6: 'catalog',
+  })
+  assert.equal(catalogMcp.includes('推送'), true)
+
+  const mcpModal = renderPage({ 7: 'mcp', 33: true })
+  assert.equal(mcpModal.includes('配置新 MCP 服务器'), true)
+  assert.equal(mcpModal.includes('保存并推送'), true)
+
+  const statsPage = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        isAdmin: true,
+        label: '用户',
+        rows: [{
+          name: 'backend-test',
+          inTeamRepo: true,
+          visible: true,
+          dshCount: 5,
+          otherCount: 2,
+        }],
+        inventory: {
+          members: [{ name: 'jarod', role: 'architect', projects: ['proj-core'] }],
+        },
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'stats',
+  })
+  assert.equal(statsPage.includes('团队技能与贡献统计'), true)
+  assert.equal(statsPage.includes('技能调用排行'), true)
+  assert.equal(statsPage.includes('团队成员与角色'), true)
+  assert.equal(statsPage.includes('jarod'), true)
+  assert.equal(statsPage.includes('architect'), true)
+  assert.equal(statsPage.includes('backend-test'), true)
 })

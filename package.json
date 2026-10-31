@@ -3,6 +3,11 @@
   "version": "0.3.2",
   "description": "DeepSeek Harness sidebar panel for TeamAI skills, MCP, and prompts.",
   "license": "MIT",
+  "author": "backtomyfuture",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/backtomyfuture/dsh-teamai-panel.git"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -33,6 +38,7 @@
     "lib/actions.js",
     "lib/client.js",
     "cordis.patch.yml",
+    "icon.svg",
     "README.md",
     "LICENSE"
   ],

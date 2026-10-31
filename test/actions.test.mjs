@@ -395,3 +395,111 @@ test('an unexpected failure does not echo the thrown message', async () => {
     await dir.cleanup()
   }
 })
+
+test('skill-push-all, config-update, and enhanced init pass options to teamai and update config', async () => {
+  const dir = await fixture()
+  const calls = []
+  const run = recordingRun(calls)
+  try {
+    const pushed = await runAction({
+      action: 'skill-push-all',
+      confirm: 'push-all-skills',
+    }, { home: dir.home, cwd: dir.home, runCommand: run })
+    assert.equal(pushed.ok, true)
+    assert.deepEqual(calls.at(-1).args, ['push', '--all'])
+
+    const reinit = await runAction({
+      action: 'init',
+      confirm: 'init',
+      repo: 'https://github.com/octo/skills',
+      provider: 'github',
+      scope: 'workspace',
+      role: 'hai_dev',
+      project: 'mobile,web',
+      force: true,
+    }, { home: dir.home, cwd: dir.home, runCommand: run })
+    assert.equal(reinit.ok, true)
+    assert.deepEqual(calls.at(-1).args, [
+      'init', 'https://github.com/octo/skills', '--provider', 'github', '--scope', 'workspace', '--agent', 'dsh',
+      '--role', 'hai_dev', '--project', 'mobile,web', '--force',
+    ])
+
+    const updated = await runAction({
+      action: 'config-update',
+      confirm: 'update-config',
+      role: 'ops_role',
+      projects: ['cloud', 'infra'],
+    }, { home: dir.home, cwd: dir.home, runCommand: run })
+    assert.equal(updated.ok, true)
+    const content = await readFile(path.join(dir.home, '.teamai', 'config.yaml'), 'utf8')
+    assert.match(content, /role: ops_role/)
+    assert.match(content, /cloud/)
+    assert.match(content, /infra/)
+
+    const deletedSkill = await runAction({
+      action: 'skill-delete',
+      confirm: 'delete-skill',
+      name: 'local-only',
+    }, { home: dir.home, cwd: dir.home, runCommand: run })
+    assert.equal(deletedSkill.ok, true)
+    assert.deepEqual(calls.at(-1).args, ['remove', '--force', 'skills', 'local-only'])
+
+    const deletedWs = await runAction({
+      action: 'workspace-delete',
+      confirm: 'delete-workspace',
+    }, { home: dir.home, cwd: dir.home, runCommand: run })
+    assert.equal(deletedWs.ok, true)
+    const exists = await readFile(path.join(dir.home, '.teamai', 'config.yaml'), 'utf8').catch(() => null)
+    assert.equal(exists, null)
+  } finally {
+    await dir.cleanup()
+  }
+})
+
+test('prompt-push, prompt-push-all, mcp-push, and mcp-push-all publish existing items', async () => {
+  const dir = await fixture()
+  const calls = []
+  const run = recordingRun(calls)
+  const options = { home: dir.home, cwd: dir.home, runCommand: run }
+  try {
+    await mkdir(path.join(dir.repo, 'prompts'), { recursive: true })
+    await writeFile(path.join(dir.repo, 'prompts', 'guide.md'), '# Guide\n')
+    await mkdir(path.join(dir.repo, 'mcp'), { recursive: true })
+    await writeFile(path.join(dir.repo, 'mcp', 'mcp.yaml'), 'servers: []\n')
+
+    const pushedPrompt = await runAction({
+      action: 'prompt-push',
+      confirm: 'push-prompt',
+      name: 'guide.md',
+    }, options)
+    assert.equal(pushedPrompt.ok, true)
+    assert.equal(calls.some((c) => c.command === 'git' && c.args.includes('prompts/guide.md')), true)
+
+    calls.length = 0
+    const pushedAllPrompts = await runAction({
+      action: 'prompt-push-all',
+      confirm: 'push-all-prompts',
+    }, options)
+    assert.equal(pushedAllPrompts.ok, true)
+    assert.equal(calls.some((c) => c.command === 'git' && c.args.includes('prompts/guide.md')), true)
+
+    calls.length = 0
+    const pushedMcp = await runAction({
+      action: 'mcp-push',
+      confirm: 'push-mcp',
+      name: 'docs',
+    }, options)
+    assert.equal(pushedMcp.ok, true)
+    assert.equal(calls.some((c) => c.command === 'git' && c.args.includes('mcp/mcp.yaml')), true)
+
+    calls.length = 0
+    const pushedAllMcp = await runAction({
+      action: 'mcp-push-all',
+      confirm: 'push-all-mcp',
+    }, options)
+    assert.equal(pushedAllMcp.ok, true)
+    assert.equal(calls.some((c) => c.command === 'git' && c.args.includes('mcp/mcp.yaml')), true)
+  } finally {
+    await dir.cleanup()
+  }
+})
