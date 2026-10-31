@@ -1,0 +1,4 @@
+# Mount this package as one host row. The browser half is discovered from dsh.client.
+- insert:
+    - id: dsh-teamai-panel
+      name: dsh-teamai-panel

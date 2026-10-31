@@ -1,0 +1,50 @@
+{
+  "name": "dsh-teamai-panel",
+  "version": "0.1.0",
+  "description": "DeepSeek Harness sidebar panel for TeamAI skills and local usage.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./snapshot": "./lib/snapshot.js",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    }
+  },
+  "files": [
+    "lib/index.js",
+    "lib/snapshot.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "yaml": "2.8.1"
+  },
+  "scripts": {
+    "check": "node --check lib/index.js && node --check lib/snapshot.js && node --check lib/client.js",
+    "test": "node --test"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "teamai"
+  ]
+}
