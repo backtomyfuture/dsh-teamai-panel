@@ -13,10 +13,10 @@ DeepSeek Harness 的侧边栏页面。它在本机读取 TeamAI 配置，分成�
 本机需要 `dsh`，并且已经运行过 `teamai init`。侧边栏属于 **web** profile：
 
 ```sh
-dsh plugin --profile web add github:backtomyfuture/dsh-teamai-panel
+dsh plugin --profile web add github:backtomyfuture/dsh-teamai-panel#39aede54d5419acef0df4f8404f2142e0dd5ca27
 ```
 
-安装包是手写的 JavaScript，没有 `prepare` 构建，因此不需要给这个包打开 `allowBuilds`。装好后重新加载 web profile，侧边栏会出现「团队技能」。
+`#` 后面是这次发布的代码提交。去掉它会跟踪 `main`。安装包是手写的 JavaScript，没有 `prepare` 构建，因此不需要给这个包打开 `allowBuilds`。装好后重新加载 web profile，侧边栏会出现「团队技能」。
 
 团队仓库、`usage.jsonl` 和 `~/.dsh/skills` 都留在每台机器上，不会跟着插件走。
 
