@@ -1,6 +1,6 @@
 {
   "name": "dsh-teamai-panel",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "DeepSeek Harness sidebar panel for a read-only TeamAI inventory.",
   "license": "MIT",
   "type": "module",
