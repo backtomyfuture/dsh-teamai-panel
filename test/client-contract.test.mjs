@@ -90,6 +90,7 @@ function textOf(node) {
   if (node == null || typeof node === 'boolean') return ''
   if (typeof node === 'string' || typeof node === 'number') return String(node)
   if (Array.isArray(node)) return node.map(textOf).join('\n')
+  if (typeof node.type === 'function') return textOf(node.type(node.props || {}))
   const props = node.props || {}
   return [props.placeholder, props['aria-label'], textOf(node.children)].filter(Boolean).join('\n')
 }
@@ -160,7 +161,51 @@ test('the skills page offers setup and the other tabs keep their own copy', () =
   })
   assert.equal(ready.includes('空骨架'), true)
   assert.equal(ready.includes('初始化'), true)
+  assert.equal(ready.includes('owner/repo 或 https://github.com/owner/repo'), true)
   assert.equal(ready.includes('安装 TeamAI'), false)
+
+  const configured = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: { id: 'abc', scope: 'user', label: '用户', rows: [], inventory: {} },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+  })
+  assert.equal(configured.includes('仓库已经初始化'), true)
+  assert.equal(configured.includes('GitHub 地址'), true)
+  assert.equal(configured.includes('安装 TeamAI'), false)
+
+  const skillRows = renderPage({
+    1: {
+      ok: true,
+      cli: { installed: true, version: '0.28.1' },
+      selected: {
+        id: 'abc',
+        scope: 'user',
+        label: '用户',
+        rows: [{
+          name: 'demo',
+          inTeamRepo: true,
+          visible: true,
+          excluded: false,
+          description: '说明',
+          repoCopies: ['skills/demo'],
+          dshCount: 0,
+        }],
+        inventory: {},
+      },
+      workspaces: [],
+      warnings: [],
+      dsh: [],
+    },
+    7: 'skills',
+  })
+  assert.equal(skillRows.includes('安装到本机'), true)
+  assert.equal(skillRows.includes('推送'), true)
+  assert.equal(skillRows.includes('排除'), true)
 
   const prompts = renderPage({ 7: 'prompts' })
   assert.equal(prompts.includes('团队提示词'), true)

@@ -134,6 +134,60 @@ test('install, init, pull, and exclude stay on the allowlist', async () => {
   }
 })
 
+test('skill push sends one resolved directory and ignores a caller path', async () => {
+  const dir = await fixture()
+  const calls = []
+  const run = recordingRun(calls)
+  const options = { home: dir.home, cwd: dir.home, runCommand: run }
+  const installed = path.join(dir.home, '.dsh', 'skills', 'demo')
+  await mkdir(installed, { recursive: true })
+  await writeFile(path.join(installed, 'SKILL.md'), '---\nname: demo\n---\n')
+  await mkdir(path.join(dir.repo, 'skills', 'ns', 'demo'), { recursive: true })
+  await writeFile(path.join(dir.repo, 'skills', 'ns', 'demo', 'SKILL.md'), '---\nname: demo\n---\n')
+  const published = path.join(dir.repo, 'skills', 'published')
+  await mkdir(published, { recursive: true })
+  await writeFile(path.join(published, 'SKILL.md'), '---\nname: published\n---\n')
+  try {
+    const pushed = await runAction({
+      action: 'skill-push',
+      confirm: 'push-skill',
+      name: 'demo',
+      path: '/tmp/not-this',
+    }, options)
+    assert.equal(pushed.ok, true)
+    assert.equal(pushed.message.includes('这一个技能'), true)
+    assert.deepEqual(calls.at(-1).args, ['push', '--skill', installed, '--all'])
+    assert.equal(JSON.stringify(pushed).includes(dir.home), false)
+
+    const fromRepo = await runAction({
+      action: 'skill-push',
+      confirm: 'push-skill',
+      name: 'published',
+    }, options)
+    assert.equal(fromRepo.ok, true)
+    assert.deepEqual(calls.at(-1).args, ['push', '--skill', published, '--all'])
+
+    calls.length = 0
+    const missing = await runAction({
+      action: 'skill-push',
+      confirm: 'push-skill',
+      name: 'absent',
+    }, options)
+    assert.equal(missing.ok, false)
+    assert.equal(calls.length, 0)
+
+    const bad = await runAction({
+      action: 'skill-push',
+      confirm: 'push-skill',
+      name: '../demo',
+    }, options)
+    assert.equal(bad.ok, false)
+    assert.equal(calls.some((call) => call.args[0] === 'push'), false)
+  } finally {
+    await dir.cleanup()
+  }
+})
+
 test('prompt writes stay inside the team repo and git commits only that file', async () => {
   const dir = await fixture()
   const calls = []
