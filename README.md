@@ -24,10 +24,10 @@ DeepSeek Harness 的侧边栏页面。安装之后，TeamAI 的安装、初始�
 本机需要 `dsh`，并且已经运行过 `teamai init`。Desktop 应用用的是 desktop profile。先完全退出 DeepSeek Harness，再安装：
 
 ```sh
-dsh plugin --profile desktop add github:backtomyfuture/dsh-teamai-panel#e4766cbc267831445969be46c1a7d9c75fcf1823
+dsh plugin --profile desktop add dsh-teamai-panel
 ```
 
-浏览器里的 `dsh web` 则装到 web profile，把上面的 `desktop` 换成 `web`。`#` 后面是包含这份界面的提交。去掉它会跟踪 `main`。安装包是手写的 JavaScript，没有 `prepare` 构建，因此不需要给这个包打开 `allowBuilds`。重新打开后，侧边栏会出现「Teamai资源中心」。
+浏览器里的 `dsh web` 则装到 web profile，把上面的 `desktop` 换成 `web`。`#` 后面是包含这份界面的提交。去掉它会跟踪 `main`。安装包是手写的 JavaScript，没有 `prepare` 构建，因此不需要给这个包打开 `allowBuilds`。重新打开后，侧边栏会出现「TeamAI资源中心」。
 
 团队仓库、`usage.jsonl` 和 `~/.dsh/skills` 都留在每台机器上，不会跟着插件走。
 
