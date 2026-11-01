@@ -79,7 +79,7 @@ test('apply registers the same panel id on both slots', () => {
   assert.equal(main.meta.key, 'teamai-skills')
   assert.equal(sidebar.meta.id, 'teamai-skills')
   assert.equal(sidebar.meta.order, 40)
-  assert.equal(sidebar.meta.label, 'Teamai资源中心')
+  assert.equal(sidebar.meta.label, 'TeamAI 资源中心')
   const icon = sidebar.component({ size: 20 })
   assert.equal(icon.type, 'svg')
   assert.equal(icon.props.width, 20)

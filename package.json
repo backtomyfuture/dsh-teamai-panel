@@ -17,6 +17,8 @@
     ".": "./lib/index.js",
     "./client": "./lib/client.js",
     "./snapshot": "./lib/snapshot.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
     "./package.json": "./package.json"
   },
   "dsh": {
@@ -38,6 +40,7 @@
     "lib/actions.js",
     "lib/client.js",
     "cordis.patch.yml",
+    "locale",
     "icon.svg",
     "README.md",
     "LICENSE"
